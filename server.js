@@ -5,29 +5,31 @@ const { connectDB }       = require('./src/config/db');
 
 const PORT = process.env.PORT || 8080;
 
-// ── Vercel serverless export ────────────────────────────────────────
-// When running on Vercel, it imports this module and calls the handler.
-// We still connect to DB on first invocation (connection is cached).
-let dbConnected = false;
+// ── DB connection (cached across serverless invocations) ────────────
+let dbReady = false;
 
 async function ensureDB() {
-  if (!dbConnected) {
+  if (dbReady) return;
+  try {
     await connectDB();
-    dbConnected = true;
+    dbReady = true;
+  } catch (err) {
+    // Log but don't crash — individual routes will return 503 if DB unavailable
+    console.error('⚠️  DB connection error:', err.message);
   }
 }
 
-// Wrap app to ensure DB is ready before handling requests
+// ── Vercel serverless handler ───────────────────────────────────────
+// Vercel imports this file and calls module.exports as the HTTP handler
 const handler = async (req, res) => {
   await ensureDB();
   return app(req, res);
 };
 
-// Export for Vercel
 module.exports = handler;
 
-// ── Local dev server ────────────────────────────────────────────────
-// Only start the HTTP server when NOT running inside Vercel
+// ── Local development server ────────────────────────────────────────
+// Only start HTTP listener when NOT on Vercel
 if (process.env.VERCEL !== '1') {
   (async () => {
     try {
@@ -35,9 +37,9 @@ if (process.env.VERCEL !== '1') {
       const server = http.createServer(app);
       initSocket(server);
       server.listen(PORT, () => {
-        console.log(`\n🚀  TradeHub B2B API running on http://localhost:${PORT}/api/v1`);
-        console.log(`📡  WebSocket gateway on ws://localhost:${PORT}/ws`);
-        console.log(`📁  Uploads → Cloudinary (yeju4wof)\n`);
+        console.log(`\n🚀  TradeHub B2B API → http://localhost:${PORT}/api/v1`);
+        console.log(`📡  WebSocket        → ws://localhost:${PORT}/ws`);
+        console.log(`☁️   Cloudinary       → yeju4wof\n`);
       });
     } catch (err) {
       console.error('❌  Failed to start server:', err.message);
