@@ -5,28 +5,10 @@ const { connectDB }       = require('./src/config/db');
 
 const PORT = process.env.PORT || 8080;
 
-// ── DB connection (cached across serverless invocations) ────────────
-let dbReady = false;
-
-async function ensureDB() {
-  if (dbReady) return;
-  try {
-    await connectDB();
-    dbReady = true;
-  } catch (err) {
-    // Log but don't crash — individual routes will return 503 if DB unavailable
-    console.error('⚠️  DB connection error:', err.message);
-  }
-}
-
 // ── Vercel serverless handler ───────────────────────────────────────
-// Vercel imports this file and calls module.exports as the HTTP handler
-const handler = async (req, res) => {
-  await ensureDB();
-  return app(req, res);
-};
-
-module.exports = handler;
+// Export the Express app directly. Vercel automatically wraps it.
+// (DB connection is handled lazily inside app.js middleware on Vercel)
+module.exports = app;
 
 // ── Local development server ────────────────────────────────────────
 // Only start HTTP listener when NOT on Vercel

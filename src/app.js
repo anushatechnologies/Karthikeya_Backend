@@ -6,6 +6,9 @@ const path         = require('path');
 
 const errorHandler  = require('./middleware/errorHandler');
 const { initChatSocket } = require('./socket/chat.socket');
+const { connectDB } = require('./config/db');
+
+let dbReady = false;
 
 // ── Routes ────────────────────────────────────────────────────────
 const authRoutes     = require('./routes/auth.routes');
@@ -33,11 +36,25 @@ const allowedOrigins = process.env.CORS_ORIGINS
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
 }));
+
+// ── Vercel DB Connection Middleware ───────────────────────────────
+// In serverless, ensureDB runs on the first request of a cold start
+app.use(async (req, res, next) => {
+  if (!dbReady && process.env.VERCEL === '1') {
+    try {
+      await connectDB();
+      dbReady = true;
+    } catch (err) {
+      console.error('⚠️ Lazy DB connection error:', err.message);
+    }
+  }
+  next();
+});
 
 // ── Body parsing ──────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
