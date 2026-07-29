@@ -1,4 +1,5 @@
 const { Sequelize } = require('sequelize');
+require('mysql2'); // Explicitly require for Vercel bundler (@vercel/nft)
 
 // Aiven Cloud (and other managed DBs) require SSL
 const useSSL = process.env.DB_SSL === 'true';
