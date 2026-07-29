@@ -1,5 +1,4 @@
 const { Sequelize } = require('sequelize');
-require('mysql2'); // Explicitly require for Vercel bundler (@vercel/nft)
 
 // Aiven Cloud (and other managed DBs) require SSL
 const useSSL = process.env.DB_SSL === 'true';
@@ -12,6 +11,7 @@ const sequelize = new Sequelize(
     host:    process.env.DB_HOST || 'localhost',
     port:    parseInt(process.env.DB_PORT || '3306'),
     dialect: 'mysql',
+    dialectModule: require('mysql2'), // Pass module explicitly to fix Vercel dynamic import
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {
       max:     5,    // reduced for serverless
