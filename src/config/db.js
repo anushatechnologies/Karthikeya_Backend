@@ -34,10 +34,13 @@ const sequelize = new Sequelize(
   }
 );
 
-async function connectDB() {
-  // Load all models first (registers them with sequelize)
-  require('../models/index');
+// Export BEFORE requiring models to prevent circular dependency issues
+module.exports = { sequelize, connectDB };
 
+// Load all models (registers them with sequelize)
+require('../models/index');
+
+async function connectDB() {
   // Authenticate (test the connection)
   await sequelize.authenticate();
   console.log('✅  MySQL connected successfully');
@@ -55,4 +58,4 @@ async function connectDB() {
   }
 }
 
-module.exports = { sequelize, connectDB };
+
