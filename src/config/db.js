@@ -15,7 +15,7 @@ const sequelize = new Sequelize(
     pool: {
       max:     5,    // reduced for serverless
       min:     0,
-      acquire: 10000, // 10s — fits inside Vercel timeout
+      acquire: 3000,  // 3s (fail fast on Vercel to prevent 504/500 errors)
       idle:    5000,
     },
     define: {
