@@ -26,17 +26,22 @@ const adminRoutes    = require('./routes/admin.routes');
 const app = express();
 
 // ── Security & logging ────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false, contentSecurityPolicy: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── CORS ──────────────────────────────────────────────────────────
+// In development, allow all origins so Expo Go on Android/iOS works
+// regardless of what origin header (if any) the device sends.
+const isDev = process.env.NODE_ENV !== 'production';
+
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',')
   : ['http://localhost:19006', 'http://localhost:8081'];
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
+    if (isDev) return cb(null, true);           // allow all in dev
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
@@ -45,12 +50,22 @@ app.use(cors({
 // ── Vercel DB Connection Middleware ───────────────────────────────
 // In serverless, ensureDB runs on the first request of a cold start
 app.use(async (req, res, next) => {
-  if (!dbReady && process.env.VERCEL === '1') {
+  if (!dbReady) {
     try {
       await connectDB();
       dbReady = true;
     } catch (err) {
       console.error('⚠️ Lazy DB connection error:', err.message);
+      // Don't block health check even if DB is down
+      if (req.path === '/health') return next();
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: 'DB_CONNECTION_FAILED',
+          message: 'Database is temporarily unavailable. Please try again shortly.',
+          debug: process.env.NODE_ENV !== 'production' ? err.message : undefined,
+        }
+      });
     }
   }
   next();
@@ -76,6 +91,7 @@ app.use(`${BASE}/suppliers`,   supplierRoutes);
 app.use(`${BASE}/seller`,      sellerRoutes);
 app.use(`${BASE}/inquiries`,   inquiryRoutes);
 app.use(`${BASE}/rfq`,         rfqRoutes);
+app.use(`${BASE}/rfqs`,        rfqRoutes);
 app.use(`${BASE}/orders`,      orderRoutes);
 app.use(`${BASE}/chats`,       chatRoutes);
 app.use(`${BASE}/upload`,      uploadRoutes);

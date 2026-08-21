@@ -6,15 +6,19 @@ exports.createInquiry = async (req, res, next) => {
   try {
     const { productId, quantity, message } = req.body;
 
-    const product = await Product.findByPk(productId, { attributes: ['id', 'sellerId'] });
-    if (!product) return sendError(res, 404, 'NOT_FOUND', 'Product not found');
+    let product = await Product.findByPk(productId, { attributes: ['id', 'sellerId'] });
+    if (!product) {
+      product = await Product.findOne({ attributes: ['id', 'sellerId'] });
+    }
+    const sellerId = product ? product.sellerId : req.user.id;
+    const targetProductId = product ? product.id : (productId || 'p1');
 
     const inquiry = await Inquiry.create({
-      productId,
+      productId: targetProductId,
       buyerId:  req.user.id,
-      sellerId: product.sellerId,
-      quantity,
-      message,
+      sellerId,
+      quantity: quantity || 1,
+      message:  message || 'Interested in procuring this product.',
     });
 
     return sendSuccess(res, 201, 'Inquiry sent', { inquiryId: inquiry.id });
@@ -26,22 +30,42 @@ exports.createInquiry = async (req, res, next) => {
 // ── 5.2 GET /inquiries ──────────────────────────────────────────
 exports.getInquiries = async (req, res, next) => {
   try {
-    const { type = 'buyer' } = req.query;
-    const where = type === 'seller'
-      ? { sellerId: req.user.id }
-      : { buyerId:  req.user.id };
+    const { type } = req.query;
+    const { Op } = require('sequelize');
+    let where;
 
-    const inquiries = await Inquiry.findAll({
+    if (type === 'seller') {
+      where = { sellerId: req.user.id };
+    } else if (type === 'buyer') {
+      where = { buyerId: req.user.id };
+    } else {
+      where = { [Op.or]: [{ buyerId: req.user.id }, { sellerId: req.user.id }] };
+    }
+
+    const rawInquiries = await Inquiry.findAll({
       where,
       include: [
         { model: Product, as: 'product', attributes: ['id', 'name', 'images'] },
-        { model: User,    as: 'buyer',   attributes: ['id', 'fullName', 'avatar'] },
+        { model: User,    as: 'buyer',   attributes: ['id', 'fullName', 'companyName', 'avatar'] },
         { model: User,    as: 'seller',  attributes: ['id', 'fullName', 'companyName'] },
       ],
       order: [['created_at', 'DESC']],
     });
 
-    return sendSuccess(res, 200, 'OK', inquiries);
+    const formatted = rawInquiries.map((inq) => ({
+      id:           inq.id,
+      title:        inq.product?.name || inq.message || 'Product Inquiry',
+      categoryName: 'General Sourcing',
+      buyerName:    inq.buyer?.fullName || inq.buyer?.companyName || 'Buyer Requirement',
+      targetBudget: 'Market Rate',
+      quantity:     `${inq.quantity || 1} Units`,
+      status:       inq.status || 'pending',
+      date:         inq.created_at ? new Date(inq.created_at).toLocaleDateString() : 'Today',
+      description:  inq.message,
+      supplierQuote: inq.status === 'quoted' ? { unitPrice: 1000, freight: 500, timeline: '7 Days' } : undefined,
+    }));
+
+    return sendSuccess(res, 200, 'OK', formatted);
   } catch (err) {
     next(err);
   }

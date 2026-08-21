@@ -50,3 +50,56 @@ exports.getMessages = async (req, res, next) => {
     next(err);
   }
 };
+
+// ── 7.3 POST /chats/:participantId/messages (HTTP fallback for WebSocket) ──
+// Vercel serverless does NOT support WebSocket/Socket.IO.
+// This endpoint provides HTTP-based message sending as a fallback.
+exports.sendMessage = async (req, res, next) => {
+  try {
+    const senderId   = req.user.id;
+    const receiverId = req.params.participantId;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return sendError(res, 400, 'BAD_REQUEST', 'Message content is required');
+    }
+
+    // Find or create chat thread
+    let thread = await ChatThread.findOne({
+      where: {
+        [Op.or]: [
+          { participantA: senderId,   participantB: receiverId },
+          { participantA: receiverId, participantB: senderId   },
+        ],
+      },
+    });
+
+    if (!thread) {
+      thread = await ChatThread.create({
+        participantA: senderId,
+        participantB: receiverId,
+      });
+    }
+
+    // Persist message
+    const msg = await ChatMessage.create({
+      threadId:   thread.id,
+      senderId,
+      receiverId,
+      content: content.trim(),
+    });
+
+    // Update thread preview
+    await thread.update({ lastMessage: content.trim(), lastMessageAt: new Date() });
+
+    return sendSuccess(res, 201, 'Message sent', {
+      id:        msg.id,
+      senderId,
+      receiverId,
+      content:   content.trim(),
+      timestamp: msg.created_at,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

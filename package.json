@@ -26,6 +26,7 @@
     "mysql2": "^3.10.1",
     "sequelize": "^6.37.3",
     "socket.io": "^4.7.5",
+    "sqlite3": "^6.0.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

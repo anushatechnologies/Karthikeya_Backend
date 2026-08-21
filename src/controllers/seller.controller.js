@@ -85,12 +85,74 @@ exports.deleteProduct = async (req, res, next) => {
   }
 };
 
+// ── 6.5 GET /seller/orders ─────────────────────────────────────
+exports.getSellerOrders = async (req, res, next) => {
+  try {
+    const items = await OrderItem.findAll({
+      where: { sellerId: req.user.id },
+      include: [
+        {
+          model: Order, as: 'order',
+          include: [{ model: User, as: 'buyer', attributes: ['id', 'fullName', 'companyName', 'avatar'] }],
+        },
+        { model: Product, as: 'product', attributes: ['id', 'name', 'images', 'unit'] },
+      ],
+      order: [[{ model: Order, as: 'order' }, 'created_at', 'DESC']],
+    });
+
+    const ordersMap = {};
+    items.forEach((item) => {
+      const o = item.order;
+      if (!o) return;
+      if (!ordersMap[o.id]) {
+        ordersMap[o.id] = {
+          id:              o.id,
+          orderNumber:     o.orderNumber,
+          buyerName:       o.buyer?.fullName || o.buyer?.companyName || 'Buyer',
+          buyerAvatar:     o.buyer?.avatar,
+          shippingAddress: o.shippingAddress,
+          address:         o.shippingAddress,
+          paymentMethod:   o.paymentMethod,
+          grandTotal:      parseFloat(o.grandTotal),
+          totalPrice:      parseFloat(o.grandTotal),
+          status:          o.status,
+          courierName:     o.courierName,
+          shippingCarrier: o.courierName,
+          trackingNumber:  o.trackingNumber,
+          trackingNo:      o.trackingNumber,
+          date:            o.created_at,
+          items:           [],
+        };
+      }
+      ordersMap[o.id].items.push({
+        id:           item.id,
+        productId:    item.productId,
+        productName:  item.product?.name || 'Product',
+        productImage: item.product?.images?.[0] || '',
+        quantity:     item.quantity,
+        unitPrice:    parseFloat(item.unitPrice),
+      });
+      // Top item preview convenience fields
+      if (!ordersMap[o.id].productName) {
+        ordersMap[o.id].productName  = item.product?.name || 'Product';
+        ordersMap[o.id].productImage = item.product?.images?.[0] || '';
+        ordersMap[o.id].quantity     = item.quantity;
+        ordersMap[o.id].unitPrice    = parseFloat(item.unitPrice);
+      }
+    });
+
+    return sendSuccess(res, 200, 'OK', Object.values(ordersMap));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── 6.4 PUT /seller/orders/:id/status ───────────────────────────
 exports.updateOrderStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
-    const VALID = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
-    if (!VALID.includes(status)) {
+    const { status, trackingNo, trackingNumber, shippingCarrier, courierName } = req.body;
+    const VALID = ['new', 'placed', 'confirmed', 'processing', 'packed', 'ready_to_dispatch', 'shipped', 'delivered', 'cancelled', 'rejected'];
+    if (status && !VALID.includes(status)) {
       return sendError(res, 422, 'INVALID_STATUS', `Status must be one of: ${VALID.join(', ')}`);
     }
 
@@ -100,8 +162,14 @@ exports.updateOrderStatus = async (req, res, next) => {
     });
     if (!item) return sendError(res, 404, 'NOT_FOUND', 'Order not found');
 
-    await Order.update({ status }, { where: { id: req.params.id } });
-    return sendSuccess(res, 200, 'Order status updated', { status });
+    const updateFields = {};
+    if (status) updateFields.status = status;
+    if (courierName || shippingCarrier) updateFields.courierName = courierName || shippingCarrier;
+    if (trackingNumber || trackingNo) updateFields.trackingNumber = trackingNumber || trackingNo;
+    if (status === 'delivered') updateFields.deliveredAt = new Date();
+
+    await Order.update(updateFields, { where: { id: req.params.id } });
+    return sendSuccess(res, 200, 'Order status updated', { id: req.params.id, ...updateFields });
   } catch (err) {
     next(err);
   }

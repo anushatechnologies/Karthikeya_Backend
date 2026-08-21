@@ -1,62 +1,90 @@
 const { Sequelize } = require('sequelize');
+const path = require('path');
 
-// Aiven Cloud (and other managed DBs) require SSL
-const useSSL = process.env.DB_SSL === 'true';
+const dbPath = path.join(__dirname, '../../database/tradehub.sqlite');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'tradehub_db',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',
-  {
-    host:    process.env.DB_HOST || 'localhost',
-    port:    parseInt(process.env.DB_PORT || '3306'),
-    dialect: 'mysql',
-    dialectModule: require('mysql2'), // Pass module explicitly to fix Vercel dynamic import
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
-    pool: {
-      max:     5,    // reduced for serverless
-      min:     0,
-      acquire: 3000,  // 3s (fail fast on Vercel to prevent 504/500 errors)
-      idle:    5000,
-    },
-    define: {
-      underscored: true,
-      timestamps:  true,
-      createdAt:   'created_at',
-      updatedAt:   'updated_at',
-    },
-    ...(useSSL && {
-      dialectOptions: {
-        ssl: {
-          rejectUnauthorized: true,
+const isProdMySQL = Boolean(process.env.DB_HOST || process.env.VERCEL === '1');
+
+const sequelize = isProdMySQL
+  ? new Sequelize(
+      process.env.DB_NAME || 'defaultdb',
+      process.env.DB_USER || 'avnadmin',
+      process.env.DB_PASSWORD,
+      {
+        host: process.env.DB_HOST,
+        port: parseInt(process.env.DB_PORT || '13222'),
+        dialect: 'mysql',
+        logging: false,
+        dialectOptions: {
+          ssl: { rejectUnauthorized: false },
+          connectTimeout: 30000,   // 30s timeout for Aiven cold connects
         },
+        pool: {
+          max:     5,              // serverless: keep pool small
+          min:     0,
+          acquire: 30000,          // wait up to 30s for a connection
+          idle:    10000,
+          evict:   15000,          // clean up idle connections faster
+        },
+        retry: {
+          max: 3,                  // retry failed queries up to 3 times
+        },
+        define: {
+          underscored: true,
+          timestamps:  true,
+          createdAt:   'created_at',
+          updatedAt:   'updated_at',
+        },
+      }
+    )
+  : new Sequelize({
+      dialect: 'sqlite',
+      storage: dbPath,
+      logging: false,
+      define: {
+        underscored: true,
+        timestamps:  true,
+        createdAt:   'created_at',
+        updatedAt:   'updated_at',
       },
-    }),
-  }
-);
+    });
 
-// Export BEFORE requiring models to prevent circular dependency issues
 module.exports = { sequelize, connectDB };
 
-// Load all models (registers them with sequelize)
 require('../models/index');
 
-async function connectDB() {
-  // Authenticate (test the connection)
-  await sequelize.authenticate();
-  console.log('✅  MySQL connected successfully');
+let connectionAttempts = 0;
+const MAX_RETRIES = 3;
 
-  // ── IMPORTANT ──────────────────────────────────────────────────
-  // In PRODUCTION (Vercel): NEVER run sync() — use schema.sql instead.
-  // sync() can take 30-60s and will cause Vercel 502 timeout.
-  // In DEVELOPMENT: sync({ alter: true }) is fine for local work.
-  // ───────────────────────────────────────────────────────────────
-  if (process.env.NODE_ENV !== 'production') {
-    await sequelize.sync({ alter: true });
-    console.log('✅  Database models synchronized (dev only)');
-  } else {
-    console.log('✅  Production mode — skipping sync (using schema.sql)');
+async function connectDB() {
+  while (connectionAttempts < MAX_RETRIES) {
+    try {
+      connectionAttempts++;
+      console.log(`💾 DB connection attempt ${connectionAttempts}/${MAX_RETRIES} → ${isProdMySQL ? 'MySQL (Aiven)' : 'SQLite'}...`);
+
+      await sequelize.authenticate();
+      console.log(`✅ Database authenticated successfully`);
+
+      await sequelize.sync();
+      console.log('✅ All database tables synchronized & active!');
+      return; // success — exit the retry loop
+    } catch (err) {
+      console.error(`❌ DB connection attempt ${connectionAttempts} failed:`, err.message);
+      if (connectionAttempts >= MAX_RETRIES) {
+        console.error('❌ All DB connection attempts exhausted. Env check:', {
+          DB_HOST: process.env.DB_HOST ? '✓ set' : '✗ MISSING',
+          DB_PORT: process.env.DB_PORT ? '✓ set' : '✗ MISSING',
+          DB_NAME: process.env.DB_NAME ? '✓ set' : '✗ MISSING',
+          DB_USER: process.env.DB_USER ? '✓ set' : '✗ MISSING',
+          DB_PASSWORD: process.env.DB_PASSWORD ? '✓ set' : '✗ MISSING',
+          NODE_ENV: process.env.NODE_ENV || 'not set',
+          VERCEL: process.env.VERCEL || 'not set',
+        });
+        throw err;
+      }
+      // wait 2 seconds before retry
+      await new Promise(r => setTimeout(r, 2000));
+    }
   }
 }
-
 

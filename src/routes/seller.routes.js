@@ -13,7 +13,9 @@ router.post(  '/products',           validate(createProductSchema), sellerCtrl.c
 router.put(   '/products/:id',       sellerCtrl.updateProduct);
 router.delete('/products/:id',       sellerCtrl.deleteProduct);
 
-// Order status update
-router.put('/orders/:id/status',     sellerCtrl.updateOrderStatus);
+// Order management
+router.get(  '/orders',            sellerCtrl.getSellerOrders);
+router.put(  '/orders/:id/status', sellerCtrl.updateOrderStatus);
+router.patch('/orders/:id/status', sellerCtrl.updateOrderStatus);
 
 module.exports = router;

@@ -3,41 +3,43 @@ const Joi = require('joi');
 const loginSchema = Joi.object({
   identifier: Joi.string().required(),
   password:   Joi.string().min(6).required(),
-  role:       Joi.string().valid('buyer', 'seller', 'admin').required(),
+  role:       Joi.string().valid('buyer', 'seller', 'admin', 'super_admin', 'platform_admin', 'support_admin', 'finance_admin', 'moderator', 'operations_admin', 'marketing_admin', 'readonly_admin').required(),
 });
 
 const signupBuyerSchema = Joi.object({
   fullName:        Joi.string().min(2).required(),
   phone:           Joi.string().pattern(/^\d{10}$/).required(),
-  email:           Joi.string().email().required(),
-  password:        Joi.string().min(6).required(),
-  businessDetails: Joi.string().optional(),
+  email:           Joi.string().email().optional().allow('', null),
+  password:        Joi.string().min(4).optional().allow('', null),
+  businessDetails: Joi.string().optional().allow('', null),
 });
 
 const signupSupplierSchema = Joi.object({
   ownerName:    Joi.string().min(2).required(),
   companyName:  Joi.string().required(),
   phone:        Joi.string().pattern(/^\d{10}$/).required(),
-  email:        Joi.string().email().required(),
-  password:     Joi.string().min(6).required(),
+  email:        Joi.string().email().optional().allow('', null),
+  password:     Joi.string().min(4).optional().allow('', null),
   gstNumber:    Joi.string().length(15).required(),
-  businessType: Joi.string().valid('Manufacturer', 'Wholesaler', 'Exporter', 'Trader').required(),
+  panNumber:    Joi.string().length(10).optional().allow('', null),
+  panDocUrl:    Joi.string().optional().allow('', null),
+  businessType: Joi.string().required(),
   address:      Joi.string().required(),
-  kycDocUrl:    Joi.string().uri().required(),
+  kycDocUrl:    Joi.string().optional().allow('', null),
 });
 
 const createProductSchema = Joi.object({
   name:             Joi.string().required(),
-  description:      Joi.string().optional(),
-  images:           Joi.array().items(Joi.string().uri()).default([]),
-  categoryId:       Joi.string().uuid().required(),
+  description:      Joi.string().optional().allow('', null),
+  images:           Joi.array().items(Joi.string()).default([]),
+  categoryId:       Joi.string().required(),
   price:            Joi.number().min(0).required(),
-  priceType:        Joi.string().valid('fixed', 'negotiable', 'rfq').required(),
+  priceType:        Joi.string().valid('fixed', 'negotiable', 'rfq').default('fixed'),
   minOrderQty:      Joi.number().integer().min(1).default(1),
   unit:             Joi.string().default('Piece'),
   specifications:   Joi.object().default({}),
   tags:             Joi.array().items(Joi.string()).default([]),
-  location:         Joi.string().optional(),
+  location:         Joi.string().optional().allow('', null),
   bulkPricingTiers: Joi.array().items(
     Joi.object({
       minQty: Joi.number().required(),
@@ -48,23 +50,26 @@ const createProductSchema = Joi.object({
 });
 
 const inquirySchema = Joi.object({
-  productId: Joi.string().uuid().required(),
+  productId: Joi.string().required(),
   quantity:  Joi.number().integer().min(1).required(),
-  message:   Joi.string().optional(),
+  message:   Joi.string().optional().allow('', null),
 });
 
 const rfqSchema = Joi.object({
   title:          Joi.string().required(),
-  category:       Joi.string().optional(),
-  quantity:       Joi.string().optional(),
-  targetPrice:    Joi.string().optional(),
-  specifications: Joi.string().optional(),
+  category:       Joi.string().optional().allow('', null),
+  quantity:       Joi.string().optional().allow('', null),
+  targetPrice:    Joi.string().optional().allow('', null),
+  specifications: Joi.string().optional().allow('', null),
 });
 
 const rfqQuoteSchema = Joi.object({
-  pricePerUnit:  Joi.number().min(0).required(),
-  totalPrice:    Joi.number().min(0).required(),
+  pricePerUnit:  Joi.number().min(0).optional(),
+  unitPrice:     Joi.number().min(0).optional(),
+  totalPrice:    Joi.number().min(0).optional(),
+  freight:       Joi.number().min(0).optional(),
   deliveryDays:  Joi.number().integer().optional(),
+  timeline:      Joi.string().optional(),
   paymentTerms:  Joi.string().optional(),
   warranty:      Joi.string().optional(),
 });
@@ -72,13 +77,13 @@ const rfqQuoteSchema = Joi.object({
 const placeOrderSchema = Joi.object({
   items: Joi.array().items(
     Joi.object({
-      productId: Joi.string().uuid().required(),
+      productId: Joi.string().required(),
       quantity:  Joi.number().integer().min(1).required(),
-      unitPrice: Joi.number().min(0).required(),
+      unitPrice: Joi.number().min(0).optional(),
     })
   ).min(1).required(),
   shippingAddress: Joi.string().required(),
-  paymentMethod:   Joi.string().valid('bank', 'lc', 'card').required(),
+  paymentMethod:   Joi.string().valid('bank', 'lc', 'card', 'COD', 'Online', 'Credit').required(),
   subtotal:        Joi.number().min(0).required(),
   tax:             Joi.number().min(0).default(0),
   shippingCost:    Joi.number().min(0).default(0),
@@ -88,6 +93,17 @@ const placeOrderSchema = Joi.object({
 const kycVerifySchema = Joi.object({
   action: Joi.string().valid('approve', 'reject').required(),
   reason: Joi.string().optional(),
+});
+
+const sendOtpSchema = Joi.object({
+  phone: Joi.string().pattern(/^\+?[0-9]{10,13}$/).required(),
+  role:  Joi.string().valid('buyer', 'seller', 'admin').optional().default('buyer'),
+});
+
+const verifyOtpSchema = Joi.object({
+  phone: Joi.string().pattern(/^\+?[0-9]{10,13}$/).required(),
+  otp:   Joi.string().length(6).required(),
+  role:  Joi.string().valid('buyer', 'seller', 'admin').optional().default('buyer'),
 });
 
 function validate(schema) {
@@ -108,6 +124,8 @@ function validate(schema) {
 module.exports = {
   validate,
   loginSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
   signupBuyerSchema,
   signupSupplierSchema,
   createProductSchema,
@@ -117,3 +135,4 @@ module.exports = {
   placeOrderSchema,
   kycVerifySchema,
 };
+

@@ -1,6 +1,9 @@
 node_modules/
 uploads/
 .env
+.env.*
 *.log
 dist/
 .vercel/
+.expo/
+*.sqlite

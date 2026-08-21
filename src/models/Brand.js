@@ -1,58 +1,41 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Category = sequelize.define('Category', {
+const Brand = sequelize.define('Brand', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
   name: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(120),
     allowNull: false,
   },
   slug: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(120),
     unique: true,
     allowNull: false,
   },
-  parentId: {
-    type: DataTypes.UUID,
-    field: 'parent_id',
-  },
-  icon: {
-    type: DataTypes.STRING(80),
-  },
-  image: {
+  logo: {
     type: DataTypes.TEXT,
   },
   description: {
     type: DataTypes.TEXT,
   },
-  sortOrder: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    field: 'sort_order',
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    field: 'is_active',
+  status: {
+    type: DataTypes.ENUM('active', 'inactive', 'pending'),
+    defaultValue: 'active',
   },
   productCount: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
     field: 'product_count',
   },
-  attributes: {
-    type: DataTypes.JSON,
-    defaultValue: [],
-  },
 }, {
-  tableName: 'categories',
+  tableName: 'brands',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Category;
+module.exports = Brand;

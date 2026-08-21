@@ -1,33 +1,27 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
-const Category = sequelize.define('Category', {
+const CMSBanner = sequelize.define('CMSBanner', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  name: {
-    type: DataTypes.STRING(100),
+  title: {
+    type: DataTypes.STRING(200),
     allowNull: false,
   },
-  slug: {
-    type: DataTypes.STRING(100),
-    unique: true,
+  subtitle: {
+    type: DataTypes.STRING(200),
+  },
+  imageUrl: {
+    type: DataTypes.TEXT,
     allowNull: false,
+    field: 'image_url',
   },
-  parentId: {
-    type: DataTypes.UUID,
-    field: 'parent_id',
-  },
-  icon: {
-    type: DataTypes.STRING(80),
-  },
-  image: {
+  linkUrl: {
     type: DataTypes.TEXT,
-  },
-  description: {
-    type: DataTypes.TEXT,
+    field: 'link_url',
   },
   sortOrder: {
     type: DataTypes.INTEGER,
@@ -39,20 +33,11 @@ const Category = sequelize.define('Category', {
     defaultValue: true,
     field: 'is_active',
   },
-  productCount: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    field: 'product_count',
-  },
-  attributes: {
-    type: DataTypes.JSON,
-    defaultValue: [],
-  },
 }, {
-  tableName: 'categories',
+  tableName: 'cms_banners',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Category;
+module.exports = CMSBanner;

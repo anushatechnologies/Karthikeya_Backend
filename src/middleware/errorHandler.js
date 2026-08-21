@@ -4,10 +4,11 @@ const { sendError } = require('../utils/response');
 module.exports = function errorHandler(err, req, res, next) {
   console.error('❌ Unhandled error:', err);
 
-  // Sequelize validation errors
+  // Sequelize validation errors / Unique constraint errors
   if (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError') {
     const details = err.errors ? err.errors.map(e => e.message) : [];
-    return sendError(res, 422, 'VALIDATION_ERROR', err.message, details);
+    const mainMsg = details[0] || err.message || 'Validation error';
+    return sendError(res, 422, 'VALIDATION_ERROR', mainMsg, details);
   }
 
   // JWT errors
@@ -20,6 +21,7 @@ module.exports = function errorHandler(err, req, res, next) {
     return sendError(res, err.statusCode, err.code || 'ERROR', err.message);
   }
 
-  // Generic 500
-  return sendError(res, 500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+  // Generic 500 with actual error detail fallback
+  const errMsg = err.message || 'An unexpected error occurred';
+  return sendError(res, 500, 'INTERNAL_ERROR', errMsg);
 };
