@@ -29,22 +29,12 @@ const app = express();
 app.use(helmet({ crossOriginResourcePolicy: false, contentSecurityPolicy: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// ── CORS ──────────────────────────────────────────────────────────
-// In development, allow all origins so Expo Go on Android/iOS works
-// regardless of what origin header (if any) the device sends.
-const isDev = process.env.NODE_ENV !== 'production';
-
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',')
-  : ['http://localhost:19006', 'http://localhost:8081'];
-
+// ── CORS (Universal Web & Mobile Support) ────────────────────────
 app.use(cors({
-  origin: (origin, cb) => {
-    if (isDev) return cb(null, true);           // allow all in dev
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS: origin ${origin} not allowed`));
-  },
+  origin: true,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 
 // ── Vercel DB Connection Middleware ───────────────────────────────
