@@ -3,6 +3,7 @@ const ctrl     = require('../controllers/auth.controller');
 const auth     = require('../middleware/auth');
 const { validate, loginSchema, sendOtpSchema, verifyOtpSchema, signupBuyerSchema, signupSupplierSchema } = require('../utils/validators');
 
+router.post('/check-phone',                                       ctrl.checkPhone);
 router.post('/send-otp',         validate(sendOtpSchema),         ctrl.sendOtp);
 router.post('/verify-otp',       validate(verifyOtpSchema),       ctrl.verifyOtp);
 router.post('/firebase-login',                                    ctrl.firebaseLogin);

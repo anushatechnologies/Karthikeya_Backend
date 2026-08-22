@@ -25,6 +25,33 @@ function serializeUser(user) {
   };
 }
 
+// ── 2.0 Check Phone Registration Status ─────────────────────────
+exports.checkPhone = async (req, res, next) => {
+  try {
+    const { phone: rawPhone } = req.body;
+    const phone = normalizePhone(rawPhone);
+
+    if (!phone || phone.length < 10) {
+      return sendError(res, 400, 'BAD_REQUEST', 'Valid 10-digit phone number is required');
+    }
+
+    const user = await User.findOne({
+      where: {
+        phone: { [Op.like]: `%${phone}%` },
+      },
+    });
+
+    return sendSuccess(res, 200, 'Phone status checked', {
+      exists: !!user,
+      isRegistered: !!user,
+      role: user?.role || null,
+      fullName: user?.fullName || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── 2.0A POST /auth/send-otp (Phone OTP Sign In / Registration) ───
 exports.sendOtp = async (req, res, next) => {
   try {
@@ -169,24 +196,11 @@ exports.firebaseLogin = async (req, res, next) => {
     });
 
     if (!user) {
-      const dummyEmail = `user_${phone}@kfpcl.trade`;
-      const defaultName = role === 'seller' ? `Supplier ${phone.slice(-4)}` : `Buyer ${phone.slice(-4)}`;
-      const randomPassword = await bcrypt.hash(`KFPCL@${phone}`, 10);
+      return sendError(res, 404, 'USER_NOT_REGISTERED', 'No account found for this mobile number. Please register first.');
+    }
 
-      user = await User.create({
-        fullName: defaultName,
-        phone,
-        email: dummyEmail,
-        password: randomPassword,
-        role: role || 'buyer',
-        companyName: role === 'seller' ? `KFPCL Enterprise (${phone.slice(-4)})` : 'KFPCL Buyer',
-        isVerified: true,
-      });
-      console.log(`✅ New user auto-registered via Firebase Phone: ${user.phone} (${user.role})`);
-    } else {
-      if (user.isActive === false) {
-        return sendError(res, 403, 'ACCOUNT_DISABLED', 'Account is disabled');
-      }
+    if (user.isActive === false) {
+      return sendError(res, 403, 'ACCOUNT_DISABLED', 'Account is disabled');
     }
 
     const token = signToken({ id: user.id, email: user.email, role: user.role });
