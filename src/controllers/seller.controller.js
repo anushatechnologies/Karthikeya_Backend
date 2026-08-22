@@ -2,6 +2,23 @@ const { sequelize }                            = require('../config/db');
 const { Product, ProductPricingTier, Category, User, Order, OrderItem } = require('../models/index');
 const { sendSuccess, sendError }               = require('../utils/response');
 
+// ── 4.0 GET /seller/products ────────────────────────────────────
+exports.getSellerProducts = async (req, res, next) => {
+  try {
+    const products = await Product.findAll({
+      where: { sellerId: req.user.id, isActive: true },
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: ProductPricingTier, as: 'bulkPricingTiers', attributes: ['minQty', 'maxQty', 'price'] },
+      ],
+      order: [['created_at', 'DESC']],
+    });
+    return sendSuccess(res, 200, 'OK', products);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── 4.1 POST /seller/products ───────────────────────────────────
 exports.createProduct = async (req, res, next) => {
   const t = await sequelize.transaction();

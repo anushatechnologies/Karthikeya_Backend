@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+const { verifyToken } = require('../utils/jwt');
 const { sendError } = require('../utils/response');
 
 module.exports = function authenticate(req, res, next) {
@@ -9,7 +9,7 @@ module.exports = function authenticate(req, res, next) {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyToken(token);
     req.user = decoded; // { id, email, role }
     next();
   } catch (err) {

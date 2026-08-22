@@ -65,7 +65,7 @@ RFQQuote.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' });
 Order.belongsTo(User,         { foreignKey: 'buyer_id', as: 'buyer' });
 Order.belongsTo(User,         { foreignKey: 'supplier_id', as: 'supplier' });
 Order.hasMany(OrderItem,      { foreignKey: 'order_id', as: 'items', onDelete: 'CASCADE' });
-OrderItem.belongsTo(Order,    { foreignKey: 'order_id' });
+OrderItem.belongsTo(Order,    { foreignKey: 'order_id', as: 'order' });
 OrderItem.belongsTo(Product,  { foreignKey: 'product_id', as: 'product' });
 OrderItem.belongsTo(User,     { foreignKey: 'seller_id',  as: 'seller' });
 

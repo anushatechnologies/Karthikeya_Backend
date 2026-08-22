@@ -3,7 +3,7 @@ const path = require('path');
 
 const dbPath = path.join(__dirname, '../../database/tradehub.sqlite');
 
-const isProdMySQL = Boolean(process.env.DB_HOST || process.env.VERCEL === '1');
+const isProdMySQL = Boolean(process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && !process.env.DB_HOST.includes('aivencloud'));
 
 const sequelize = isProdMySQL
   ? new Sequelize(
@@ -17,17 +17,17 @@ const sequelize = isProdMySQL
         logging: false,
         dialectOptions: {
           ssl: { rejectUnauthorized: false },
-          connectTimeout: 30000,   // 30s timeout for Aiven cold connects
+          connectTimeout: 30000,
         },
         pool: {
-          max:     5,              // serverless: keep pool small
+          max:     5,
           min:     0,
-          acquire: 30000,          // wait up to 30s for a connection
+          acquire: 30000,
           idle:    10000,
-          evict:   15000,          // clean up idle connections faster
+          evict:   15000,
         },
         retry: {
-          max: 3,                  // retry failed queries up to 3 times
+          max: 3,
         },
         define: {
           underscored: true,

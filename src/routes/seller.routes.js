@@ -9,6 +9,7 @@ const { validate, createProductSchema } = require('../utils/validators');
 router.use(auth, requireRole('seller'));
 
 // Product management
+router.get(   '/products',           sellerCtrl.getSellerProducts);
 router.post(  '/products',           validate(createProductSchema), sellerCtrl.createProduct);
 router.put(   '/products/:id',       sellerCtrl.updateProduct);
 router.delete('/products/:id',       sellerCtrl.deleteProduct);
