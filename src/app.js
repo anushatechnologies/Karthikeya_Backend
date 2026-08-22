@@ -78,8 +78,10 @@ app.use(express.urlencoded({ extended: true }));
 // ── Static file serving (uploads) ────────────────────────────────
 app.use('/uploads', express.static(path.join(process.cwd(), process.env.UPLOAD_DIR || 'uploads')));
 
-// ── Health check ─────────────────────────────────────────────────
+// ── Health & Status check ─────────────────────────────────────────
+app.get('/', (_req, res) => res.json({ success: true, message: 'KFPCL B2B API Server is active', status: 'online' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/v1', (_req, res) => res.json({ success: true, message: 'KFPCL B2B API v1 is active and healthy', status: 'online' }));
 
 // ── API Routes ────────────────────────────────────────────────────
 const BASE = '/api/v1';
