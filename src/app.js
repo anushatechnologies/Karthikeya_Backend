@@ -83,21 +83,26 @@ app.get('/', (_req, res) => res.json({ success: true, message: 'KFPCL B2B API Se
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1', (_req, res) => res.json({ success: true, message: 'KFPCL B2B API v1 is active and healthy', status: 'online' }));
 
-// ── API Routes ────────────────────────────────────────────────────
-const BASE = '/api/v1';
+// ── API Routes (Universal prefix support for Vercel Serverless) ────
+const mountRoutes = (prefix) => {
+  app.use(`${prefix}/auth`,        authRoutes);
+  app.use(`${prefix}/categories`,  categoryRoutes);
+  app.use(`${prefix}/products`,    productRoutes);
+  app.use(`${prefix}/suppliers`,   supplierRoutes);
+  app.use(`${prefix}/seller`,      sellerRoutes);
+  app.use(`${prefix}/inquiries`,   inquiryRoutes);
+  app.use(`${prefix}/rfq`,         rfqRoutes);
+  app.use(`${prefix}/rfqs`,        rfqRoutes);
+  app.use(`${prefix}/orders`,      orderRoutes);
+  app.use(`${prefix}/chats`,       chatRoutes);
+  app.use(`${prefix}/upload`,      uploadRoutes);
+  app.use(`${prefix}/admin`,       adminRoutes);
+};
 
-app.use(`${BASE}/auth`,        authRoutes);
-app.use(`${BASE}/categories`,  categoryRoutes);
-app.use(`${BASE}/products`,    productRoutes);
-app.use(`${BASE}/suppliers`,   supplierRoutes);
-app.use(`${BASE}/seller`,      sellerRoutes);
-app.use(`${BASE}/inquiries`,   inquiryRoutes);
-app.use(`${BASE}/rfq`,         rfqRoutes);
-app.use(`${BASE}/rfqs`,        rfqRoutes);
-app.use(`${BASE}/orders`,      orderRoutes);
-app.use(`${BASE}/chats`,       chatRoutes);
-app.use(`${BASE}/upload`,      uploadRoutes);
-app.use(`${BASE}/admin`,       adminRoutes);
+mountRoutes('/api/v1');
+mountRoutes('/v1');
+mountRoutes('/api');
+mountRoutes('');
 
 // ── 404 handler ───────────────────────────────────────────────────
 app.use((_req, res) => {
