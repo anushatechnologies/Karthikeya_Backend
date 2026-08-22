@@ -12,7 +12,7 @@ const signupBuyerSchema = Joi.object({
   email:           Joi.string().email().optional().allow('', null),
   password:        Joi.string().min(4).optional().allow('', null),
   businessDetails: Joi.string().optional().allow('', null),
-});
+}).unknown(true);
 
 const signupSupplierSchema = Joi.object({
   ownerName:    Joi.string().min(2).required(),
@@ -26,7 +26,7 @@ const signupSupplierSchema = Joi.object({
   businessType: Joi.string().required(),
   address:      Joi.string().required(),
   kycDocUrl:    Joi.string().optional().allow('', null),
-});
+}).unknown(true);
 
 const createProductSchema = Joi.object({
   name:             Joi.string().required(),
