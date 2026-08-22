@@ -1,7 +1,22 @@
 const { Sequelize } = require('sequelize');
 const path = require('path');
 
-const dbPath = path.join(__dirname, '../../database/tradehub.sqlite');
+const fs = require('fs');
+let effectiveDbPath = path.join(__dirname, '../../database/tradehub.sqlite');
+
+if (process.env.VERCEL === '1') {
+  const tmpDbPath = '/tmp/tradehub.sqlite';
+  if (!fs.existsSync(tmpDbPath)) {
+    try {
+      if (fs.existsSync(effectiveDbPath)) {
+        fs.copyFileSync(effectiveDbPath, tmpDbPath);
+      }
+    } catch (e) {
+      console.warn('Could not copy SQLite to /tmp:', e.message);
+    }
+  }
+  effectiveDbPath = tmpDbPath;
+}
 
 const isProdMySQL = Boolean(process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && !process.env.DB_HOST.includes('aivencloud'));
 
@@ -39,7 +54,7 @@ const sequelize = isProdMySQL
     )
   : new Sequelize({
       dialect: 'sqlite',
-      storage: dbPath,
+      storage: effectiveDbPath,
       logging: false,
       define: {
         underscored: true,
