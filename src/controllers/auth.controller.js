@@ -108,7 +108,6 @@ exports.verifyOtp = async (req, res, next) => {
     const { phone: rawPhone, otp, role = 'buyer' } = req.body;
     const phone = normalizePhone(rawPhone);
 
-    const isMasterOtp = otp === '123456';
     let otpRecord = null;
     try {
       otpRecord = await OTP.findOne({
@@ -118,8 +117,8 @@ exports.verifyOtp = async (req, res, next) => {
       console.warn('OTP verify DB query fallback:', e.message);
     }
 
-    if (!otpRecord && !isMasterOtp) {
-      return sendError(res, 400, 'INVALID_OTP', 'Invalid or expired OTP. Please try again.');
+    if (!otpRecord) {
+      return sendError(res, 400, 'INVALID_OTP', 'Invalid or expired OTP. Please enter the valid code received via SMS.');
     }
 
     if (otpRecord) {
