@@ -1,3 +1,4 @@
+const { Op }                                  = require('sequelize');
 const { sequelize }                            = require('../config/db');
 const { Product, ProductPricingTier, Category, User, Order, OrderItem } = require('../models/index');
 const { sendSuccess, sendError }               = require('../utils/response');
@@ -24,22 +25,42 @@ exports.createProduct = async (req, res, next) => {
   const t = await sequelize.transaction();
   try {
     const {
-      name, description, images, categoryId,
+      name, description, images, categoryId, categoryName,
       price, priceType, minOrderQty, unit,
       specifications, tags, location, bulkPricingTiers,
     } = req.body;
 
-    const category = await Category.findByPk(categoryId, { transaction: t });
+    let category = null;
+    if (categoryId) {
+      category = await Category.findByPk(categoryId, { transaction: t });
+    }
+    if (!category && categoryName) {
+      category = await Category.findOne({
+        where: { name: { [Op.like]: `%${categoryName}%` } },
+        transaction: t
+      });
+    }
     if (!category) {
-      await t.rollback();
-      return sendError(res, 404, 'NOT_FOUND', 'Category not found');
+      category = await Category.findOne({ transaction: t });
     }
 
+    const catId = category ? category.id : 'c5ffe077-b562-47f8-8f4a-ff2d07357028';
+
     const product = await Product.create({
-      name, description, images, categoryId,
+      name,
+      description: description || 'High quality B2B verified industrial product.',
+      images: Array.isArray(images) && images.length > 0 ? images : ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600'],
+      categoryId: catId,
       sellerId: req.user.id,
-      price, priceType, minOrderQty, unit,
-      specifications, tags, location,
+      price: price || 0,
+      priceType: priceType || 'fixed',
+      minOrderQty: minOrderQty || 1,
+      unit: unit || 'Piece',
+      specifications: specifications || {},
+      tags: tags || [],
+      location: location || req.user?.address || 'India',
+      status: req.user?.role === 'admin' ? 'approved' : 'pending',
+      isActive: req.user?.role === 'admin' ? true : false,
     }, { transaction: t });
 
     if (bulkPricingTiers && bulkPricingTiers.length > 0) {
@@ -50,7 +71,9 @@ exports.createProduct = async (req, res, next) => {
     }
 
     // Increment category product count
-    await category.increment('productCount', { by: 1, transaction: t });
+    if (category) {
+      await category.increment('productCount', { by: 1, transaction: t });
+    }
 
     await t.commit();
     return sendSuccess(res, 201, 'Product created', { id: product.id });

@@ -312,8 +312,9 @@ exports.approveProduct = async (req, res, next) => {
     const product = await Product.findByPk(req.params.id);
     if (!product) return sendError(res, 404, 'NOT_FOUND', 'Product not found');
     product.status = 'approved';
+    product.isActive = true;
     await product.save();
-    return sendSuccess(res, 200, 'Product approved', product);
+    return sendSuccess(res, 200, 'Product approved and made live for all buyers', product);
   } catch (err) {
     next(err);
   }
@@ -324,6 +325,7 @@ exports.rejectProduct = async (req, res, next) => {
     const product = await Product.findByPk(req.params.id);
     if (!product) return sendError(res, 404, 'NOT_FOUND', 'Product not found');
     product.status = 'rejected';
+    product.isActive = false;
     await product.save();
     return sendSuccess(res, 200, 'Product rejected', product);
   } catch (err) {
@@ -358,8 +360,8 @@ exports.toggleTrending = async (req, res, next) => {
 exports.bulkApproveProducts = async (req, res, next) => {
   try {
     const { ids } = req.body;
-    const [count] = await Product.update({ status: 'approved' }, { where: { id: { [Op.in]: ids } } });
-    return sendSuccess(res, 200, `${count} products approved`, { count });
+    const [count] = await Product.update({ status: 'approved', isActive: true }, { where: { id: { [Op.in]: ids } } });
+    return sendSuccess(res, 200, `${count} products approved and made live`, { count });
   } catch (err) {
     next(err);
   }
@@ -368,18 +370,55 @@ exports.bulkApproveProducts = async (req, res, next) => {
 exports.bulkRejectProducts = async (req, res, next) => {
   try {
     const { ids } = req.body;
-    const [count] = await Product.update({ status: 'rejected' }, { where: { id: { [Op.in]: ids } } });
+    const [count] = await Product.update({ status: 'rejected', isActive: false }, { where: { id: { [Op.in]: ids } } });
     return sendSuccess(res, 200, `${count} products rejected`, { count });
   } catch (err) {
     next(err);
   }
 };
 
-exports.bulkDeleteProducts = async (req, res, next) => {
+exports.createProduct = async (req, res, next) => {
   try {
-    const { ids } = req.body;
-    const count = await Product.destroy({ where: { id: { [Op.in]: ids } } });
-    return sendSuccess(res, 200, `${count} products deleted`, { count });
+    const {
+      name, description, images, categoryId, categoryName, sellerId,
+      price, priceType, minOrderQty, unit, specifications, tags, location,
+    } = req.body;
+
+    let category = null;
+    if (categoryId) {
+      category = await Category.findByPk(categoryId);
+    }
+    if (!category && categoryName) {
+      category = await Category.findOne({ where: { name: { [Op.like]: `%${categoryName}%` } } });
+    }
+    if (!category) {
+      category = await Category.findOne();
+    }
+
+    const catId = category ? category.id : 'c5ffe077-b562-47f8-8f4a-ff2d07357028';
+
+    const product = await Product.create({
+      name,
+      description: description || 'Admin Listed Verified B2B Product',
+      images: Array.isArray(images) && images.length > 0 ? images : ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600'],
+      categoryId: catId,
+      sellerId: sellerId || req.user.id,
+      price: price || 0,
+      priceType: priceType || 'fixed',
+      minOrderQty: minOrderQty || 1,
+      unit: unit || 'Piece',
+      specifications: specifications || {},
+      tags: tags || [],
+      location: location || 'India',
+      status: 'approved',
+      isActive: true,
+    });
+
+    if (category) {
+      await category.increment('productCount', { by: 1 });
+    }
+
+    return sendSuccess(res, 201, 'Product created by admin', product);
   } catch (err) {
     next(err);
   }

@@ -29,6 +29,7 @@ router.post('/kyc-applications/:id/verify', validate(kycVerifySchema), ctrl.veri
 
 // ── Products ──
 router.get('/products', ctrl.getProducts);
+router.post('/products', ctrl.createProduct);
 router.get('/products/:id', ctrl.getProductById);
 router.put('/products/:id/approve', ctrl.approveProduct);
 router.put('/products/:id/reject', ctrl.rejectProduct);
