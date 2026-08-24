@@ -95,7 +95,6 @@ exports.sendOtp = async (req, res, next) => {
     return sendSuccess(res, 200, 'OTP sent successfully via SMS', {
       phone,
       expiresIn: '10m',
-      testOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     });
   } catch (err) {
     next(err);
